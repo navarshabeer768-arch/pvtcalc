@@ -1,0 +1,48 @@
+{
+  "name": "couple-chat",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "seed-users": "tsx scripts/seed-users.ts",
+    "set-unlock-code": "tsx scripts/set-unlock-code.ts",
+    "check-bundle-safety": "tsx scripts/check-bundle-safety.ts"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.0",
+    "browser-image-compression": "^2.0.2",
+    "emoji-picker-react": "^4.22.2",
+    "idb": "^8.0.3",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-virtuoso": "^4.18.15"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.63.0",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/node": "^24.13.6",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "@vitest/ui": "^5.0.1",
+    "autoprefixer": "^10.6.1",
+    "dotenv": "^18.0.3",
+    "jsdom": "^29.1.1",
+    "oxlint": "^1.81.0",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0",
+    "vite-plugin-pwa": "^1.3.0",
+    "vitest": "^5.0.1"
+  }
+}

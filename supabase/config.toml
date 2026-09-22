@@ -1,0 +1,25 @@
+project_id = "couple-chat"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+
+[db]
+port = 54322
+
+[auth]
+enabled = true
+site_url = "http://localhost:5173"
+additional_redirect_urls = []
+# Public sign-ups are disabled — the two users are created with
+# scripts/seed-users.ts. Also set "Enable sign-ups" off in the hosted
+# project's Auth settings.
+enable_signup = false
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[edge_runtime]
+enabled = true

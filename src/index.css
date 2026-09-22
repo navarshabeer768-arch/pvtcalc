@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+:root {
+  --accent: #1f6feb;
+  --bg: #ffffff;
+  --surface: #f4f4f5;
+  --text: #111114;
+  --text-muted: #6b6b70;
+  --bubble-mine: #1f6feb;
+  --bubble-theirs: #f0f0f2;
+}
+
+:root[data-theme="pink"] {
+  --accent: #e0669d;
+  --bubble-mine: #e0669d;
+  --bubble-theirs: #fdf1f6;
+}
+
+:root[data-theme="purple"] {
+  --accent: #7c5cf0;
+  --bubble-mine: #7c5cf0;
+  --bubble-theirs: #f3f0fd;
+}
+
+:root[data-theme="midnight"] {
+  --bg: #0b0b0f;
+  --surface: #16161c;
+  --text: #f4f4f6;
+  --text-muted: #9a9aa2;
+  --bubble-mine: #3b6fe0;
+  --bubble-theirs: #1e1e26;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root[data-theme="default"] {
+    --bg: #0b0b0f;
+    --surface: #16161c;
+    --text: #f4f4f6;
+    --text-muted: #9a9aa2;
+    --bubble-mine: #3b6fe0;
+    --bubble-theirs: #1e1e26;
+  }
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+.no-select {
+  -webkit-user-select: none;
+  user-select: none;
+}
