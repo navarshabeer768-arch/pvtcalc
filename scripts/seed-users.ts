@@ -4,11 +4,14 @@
  *
  *   npx tsx scripts/seed-users.ts \
  *     --me-email you@example.com --me-name "Your Name" --me-pronoun He \
- *     --partner-email her@example.com --partner-name "Her Name" --partner-pronoun She \
- *     --password "a-temporary-password"
+ *     --partner-email her@example.com --partner-name "Her Name" --partner-pronoun She
  *
- * Passwords are temporary; each person should change theirs after first
- * sign-in. Unlock codes are set separately with scripts/set-unlock-code.ts.
+ * There's no password to set here: this app has no email/password login at
+ * all. Each user's Supabase Auth account is created with a random,
+ * never-used password (Supabase requires one to exist, but nothing ever
+ * signs in with it) — the only credential either person ever types is
+ * their unlock code, set next with scripts/set-unlock-code.ts. The `unlock`
+ * Edge Function mints a real session from the code alone, server-side.
  */
 import { adminClient } from './env';
 
@@ -19,7 +22,6 @@ interface Args {
   partnerEmail: string;
   partnerName: string;
   partnerPronoun: 'She' | 'He';
-  password: string;
 }
 
 function parseArgs(): Args {
@@ -35,20 +37,19 @@ function parseArgs(): Args {
   const partnerEmail = get('--partner-email');
   const partnerName = get('--partner-name');
   const partnerPronoun = get('--partner-pronoun') as 'She' | 'He' | undefined;
-  const password = get('--password');
 
-  if (!meEmail || !meName || !mePronoun || !partnerEmail || !partnerName || !partnerPronoun || !password) {
+  if (!meEmail || !meName || !mePronoun || !partnerEmail || !partnerName || !partnerPronoun) {
     console.error('Missing required arguments. See the header comment in this file for usage.');
     process.exit(1);
   }
 
-  return { meEmail, meName, mePronoun, partnerEmail, partnerName, partnerPronoun, password };
+  return { meEmail, meName, mePronoun, partnerEmail, partnerName, partnerPronoun };
 }
 
-async function createUser(email: string, password: string, name: string, pronoun: 'She' | 'He') {
+async function createUser(email: string, name: string, pronoun: 'She' | 'He') {
   const { data, error } = await adminClient.auth.admin.createUser({
     email,
-    password,
+    password: crypto.randomUUID() + crypto.randomUUID(), // never used to sign in
     email_confirm: true,
   });
   if (error || !data.user) throw error ?? new Error(`Could not create user ${email}`);
@@ -71,8 +72,8 @@ async function main() {
   const args = parseArgs();
 
   console.log('Creating users...');
-  const meId = await createUser(args.meEmail, args.password, args.meName, args.mePronoun);
-  const partnerId = await createUser(args.partnerEmail, args.password, args.partnerName, args.partnerPronoun);
+  const meId = await createUser(args.meEmail, args.meName, args.mePronoun);
+  const partnerId = await createUser(args.partnerEmail, args.partnerName, args.partnerPronoun);
 
   console.log('Creating conversation...');
   const { data: conversation, error: convError } = await adminClient

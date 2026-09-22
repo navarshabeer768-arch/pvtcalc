@@ -5,7 +5,10 @@ import type { UnlockResult } from '../app/lockState';
 /**
  * Calls the `unlock` Edge Function, which holds the service-role key and
  * does the actual bcrypt comparison server-side. The client never sees any
- * code hash or which user (if any) the code belongs to.
+ * code hash or which user (if any) the code belongs to. When this device
+ * has no session yet, a correct code comes back with a `session` — call
+ * `applyUnlockSession` with it to finish establishing a real Supabase
+ * session without ever asking for an email or password.
  */
 export async function checkUnlockCode(code: string): Promise<UnlockResult> {
   const deviceId = getDeviceId();
@@ -30,15 +33,12 @@ export async function checkUnlockCode(code: string): Promise<UnlockResult> {
   return data;
 }
 
-export interface SignInResult {
-  success: boolean;
-  message?: string;
-}
-
-export async function signInWithPassword(email: string, password: string): Promise<SignInResult> {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { success: false, message: error.message };
-  return { success: true };
+export async function applyUnlockSession(session: { accessToken: string; refreshToken: string }): Promise<boolean> {
+  const { error } = await supabase.auth.setSession({
+    access_token: session.accessToken,
+    refresh_token: session.refreshToken,
+  });
+  return !error;
 }
 
 export async function changeUnlockCode(currentCode: string, newCode: string): Promise<{ success: boolean; message?: string }> {

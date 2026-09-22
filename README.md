@@ -31,20 +31,28 @@ In the Supabase dashboard: **Authentication → Providers → Email → disable
 users are created manually). Set **Site URL** to your deployed URL (and
 `http://localhost:5173` while developing).
 
+There is no email/password login anywhere in this app. Each person's
+Supabase Auth account exists only so Row Level Security has an `auth.uid()`
+to check — its password is a random value nobody ever sees or uses. The
+**unlock code is the only credential**: entering the right one calls the
+`unlock` Edge Function, which mints a real session server-side (via a
+one-time magic-link token, using the service role) and hands it to the
+client. See `supabase/functions/unlock/index.ts`.
+
 ### Create the two users and set unlock codes
 
 ```bash
 npm run seed-users -- \
   --me-email you@example.com --me-name "Your Name" --me-pronoun He \
-  --partner-email her@example.com --partner-name "Her Name" --partner-pronoun She \
-  --password "a-temporary-password"
+  --partner-email her@example.com --partner-name "Her Name" --partner-pronoun She
 
 npm run set-unlock-code -- --email you@example.com --code 4821
 npm run set-unlock-code -- --email her@example.com --code 173042
 ```
 
 Each person can later change their own code from Settings → Privacy →
-"Change unlock code" (requires knowing the current code and being signed in).
+"Change unlock code" (requires knowing the current code and having an
+active session).
 
 ### Run
 
@@ -90,10 +98,14 @@ npm run build && npm run check-bundle-safety
   `calc-*` storage/IndexedDB keys, calculator-only manifest/icons/title,
   re-lock on `visibilitychange`/`pagehide`, configurable auto-lock timer,
   install prompts only inside Settings.
-- **Auth**: Supabase Auth session flow, "Sign in to restore your data"
-  screen wired to the `unlock` function's `login_required` response,
-  `set-unlock-code` Edge Function for in-app code changes, local
-  `scripts/seed-users.ts` / `scripts/set-unlock-code.ts` for initial setup.
+- **Auth**: no email/password login anywhere. The unlock code is the only
+  credential; a correct code either reuses an existing Supabase session or
+  (on a fresh device) has the `unlock` Edge Function mint one server-side
+  via a one-time magic-link token minted with the service role — RLS stays
+  fully intact (`auth.uid()` is populated normally) without a password ever
+  existing on the wire. `set-unlock-code` Edge Function for in-app code
+  changes, local `scripts/seed-users.ts` / `scripts/set-unlock-code.ts` for
+  initial setup.
 - **Database + RLS + Storage**: full schema from the spec (all 15 tables),
   indexes, `search_tsv` generated column + GIN index, `is_conversation_member`
   helper, column-restricting triggers on `messages`/`profiles`, RLS on every

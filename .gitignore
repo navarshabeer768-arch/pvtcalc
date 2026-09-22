@@ -18,6 +18,7 @@ test-results
 playwright-report
 blob-report
 playwright/.cache
+supabase/.temp
 
 # Editor directories and files
 .vscode/*

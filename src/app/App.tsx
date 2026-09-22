@@ -8,7 +8,6 @@ import type { LockView } from './lockState';
 // correct unlock code is entered. Its chunk name is a hash (see
 // vite.config.ts), so it never appears as "ChatApp-xyz.js" in devtools.
 const ChatApp = lazy(() => import('../pages/ChatApp').then((m) => ({ default: m.ChatApp })));
-const SignInScreen = lazy(() => import('../pages/SignInScreen').then((m) => ({ default: m.SignInScreen })));
 
 const DEFAULT_AUTO_LOCK_SECONDS = 120;
 
@@ -55,20 +54,14 @@ export function App() {
     };
   }, [view, resetInactivityTimer]);
 
+  // The unlock code is the only credential there is — a correct code
+  // either reuses an existing session or arrives with a freshly minted one
+  // (see useCalculator/unlockService), so there is nothing left to do here
+  // but switch views.
   const handleCalculatorEvent = useCallback((event: CalculatorEvent) => {
     if (event.type === 'unlocked') setView('unlocked');
-    else if (event.type === 'login_required') setView('sign-in-required');
     // 'locked' is handled entirely inside the calculator's own UI state.
   }, []);
-
-  const handleSignedIn = useCallback(async () => {
-    // After signing in, re-check the code the user just typed against
-    // their now-known session. In practice the sign-in screen already
-    // confirms the code server-side before calling this.
-    setView('unlocked');
-  }, []);
-
-  const handleBackToCalculator = useCallback(() => setView('calculator'), []);
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
@@ -81,14 +74,6 @@ export function App() {
     return (
       <Suspense fallback={<div className="h-dvh w-full bg-white" />}>
         <ChatApp onLock={relock} onAutoLockSecondsChange={(s) => (autoLockSeconds.current = s)} />
-      </Suspense>
-    );
-  }
-
-  if (view === 'sign-in-required') {
-    return (
-      <Suspense fallback={<div className="h-dvh w-full bg-[#1c1c1e]" />}>
-        <SignInScreen onSignedIn={handleSignedIn} onCancel={handleBackToCalculator} />
       </Suspense>
     );
   }

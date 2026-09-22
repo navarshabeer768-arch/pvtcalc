@@ -5,6 +5,16 @@
 // lockout schedule from unlock_attempts. Always performs a bcrypt
 // comparison (even for a placeholder hash) so timing doesn't leak whether
 // a session/user/lockout state matched.
+//
+// There is no password anywhere in this app. When a device has no session
+// yet and the code matches a user, this function mints a real Supabase
+// session for that user server-side (via a one-time magic-link token,
+// generated and immediately redeemed using the service role) and returns
+// the resulting access/refresh tokens. The client just calls
+// supabase.auth.setSession(...) with them. This keeps Row Level Security
+// fully intact (auth.uid() is populated normally) while the human only
+// ever types the 4-8 digit code — never an email or password, and no
+// password ever touches Supabase Auth's public password-grant endpoint.
 
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -111,7 +121,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  let result: { status: 'unlocked' | 'no_match' | 'login_required' };
+  let result: { status: 'unlocked'; session?: { accessToken: string; refreshToken: string } } | { status: 'no_match' };
 
   if (userId) {
     const { data: row } = await supabase
@@ -125,20 +135,28 @@ Deno.serve(async (req) => {
     result = { status: matched ? 'unlocked' : 'no_match' };
   } else {
     const { data: rows } = await supabase.from('unlock_codes').select('user_id, code_hash');
-    let matched = false;
+    let matchedUserId: string | null = null;
     for (const row of rows ?? []) {
       const ok = await comparePassword(code, row.code_hash, supabase);
-      matched = matched || ok;
+      if (ok) matchedUserId = row.user_id;
     }
     if ((rows ?? []).length === 0) {
       await comparePassword(code, DUMMY_HASH, supabase);
     }
-    result = { status: matched ? 'login_required' : 'no_match' };
+
+    if (matchedUserId) {
+      const session = await mintSession(supabase, matchedUserId);
+      result = session
+        ? { status: 'unlocked', session }
+        : { status: 'no_match' }; // fail closed if session minting breaks
+    } else {
+      result = { status: 'no_match' };
+    }
   }
 
   await supabase.from('unlock_attempts').insert({
     subject,
-    succeeded: result.status === 'unlocked' || result.status === 'login_required',
+    succeeded: result.status === 'unlocked',
   });
 
   return json(result, 200);
@@ -155,4 +173,43 @@ async function comparePassword(
     return false;
   }
   return !!data;
+}
+
+/**
+ * Mints a real Supabase session for `userId` using only the service role —
+ * no password involved. Generates a one-time magic-link token and redeems
+ * it immediately, server-side, to get access/refresh tokens for the client.
+ */
+async function mintSession(
+  supabase: ReturnType<typeof createClient>,
+  userId: string
+): Promise<{ accessToken: string; refreshToken: string } | null> {
+  const { data: userData, error: userError } = await supabase.auth.admin.getUserById(userId);
+  if (userError || !userData.user?.email) {
+    console.error('mintSession: could not load user', userError);
+    return null;
+  }
+
+  const { data: linkData, error: linkError } = await supabase.auth.admin.generateLink({
+    type: 'magiclink',
+    email: userData.user.email,
+  });
+  if (linkError || !linkData.properties?.hashed_token) {
+    console.error('mintSession: generateLink failed', linkError);
+    return null;
+  }
+
+  const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
+    type: 'magiclink',
+    token_hash: linkData.properties.hashed_token,
+  });
+  if (verifyError || !verifyData.session) {
+    console.error('mintSession: verifyOtp failed', verifyError);
+    return null;
+  }
+
+  return {
+    accessToken: verifyData.session.access_token,
+    refreshToken: verifyData.session.refresh_token,
+  };
 }

@@ -2,11 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { evaluate, EvaluationError, formatResult, tokenize } from './evaluator';
 import { generatePracticeQuestion, type PracticeQuestion } from './questionGenerator';
 import { isCodeShaped, nextLockoutSeconds } from '../app/lockState';
-import { checkUnlockCode } from '../services/unlockService';
+import { applyUnlockSession, checkUnlockCode } from '../services/unlockService';
 
 export type CalculatorEvent =
   | { type: 'unlocked' }
-  | { type: 'login_required' }
   | { type: 'locked'; retryAfterSeconds: number };
 
 interface UseCalculatorOptions {
@@ -106,11 +105,18 @@ export function useCalculator({ onEvent }: UseCalculatorOptions) {
         const result = await checkUnlockCode(expression);
 
         if (result.status === 'unlocked') {
+          // A fresh device has no session yet: the Edge Function minted one
+          // server-side from the code alone (no password involved). Apply
+          // it before moving on so RLS-backed requests work immediately.
+          if (result.session) {
+            const applied = await applyUnlockSession(result.session);
+            if (!applied) {
+              setDisplay(expression);
+              setJustEvaluated(true);
+              return;
+            }
+          }
           onEvent({ type: 'unlocked' });
-          return;
-        }
-        if (result.status === 'login_required') {
-          onEvent({ type: 'login_required' });
           return;
         }
         if (result.status === 'locked') {

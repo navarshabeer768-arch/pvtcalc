@@ -1,12 +1,14 @@
 import { test, expect, type Browser, type Page } from '@playwright/test';
 
-const A_EMAIL = process.env.E2E_A_EMAIL;
+// This app has no email/password login — the unlock code alone both
+// unlocks the calculator and (via the `unlock` Edge Function minting a
+// session server-side) signs each person in. Each browser context here
+// stands in for one person's own device, so it needs no prior cookies —
+// just their code.
 const A_CODE = process.env.E2E_A_CODE;
-const B_EMAIL = process.env.E2E_B_EMAIL;
 const B_CODE = process.env.E2E_B_CODE;
-const PASSWORD = process.env.E2E_PASSWORD;
 
-const hasEnv = A_EMAIL && A_CODE && B_EMAIL && B_CODE && PASSWORD;
+const hasEnv = A_CODE && B_CODE;
 
 async function unlockViaCalculator(page: Page, code: string) {
   await page.goto('/');
@@ -16,20 +18,10 @@ async function unlockViaCalculator(page: Page, code: string) {
   await page.getByRole('button', { name: '=' }).click();
 }
 
-async function signInIfNeeded(page: Page, email: string) {
-  const signInHeading = page.getByText('Sign in to restore your data');
-  if (await signInHeading.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await page.getByPlaceholder('Email').fill(email);
-    await page.getByPlaceholder('Password').fill(PASSWORD!);
-    await page.getByRole('button', { name: 'Continue' }).click();
-  }
-}
-
-async function openAsUser(browser: Browser, email: string, code: string): Promise<Page> {
+async function openAsUser(browser: Browser, code: string): Promise<Page> {
   const context = await browser.newContext();
   const page = await context.newPage();
   await unlockViaCalculator(page, code);
-  await signInIfNeeded(page, email);
   await expect(page.getByPlaceholder('Type a message...')).toBeVisible({ timeout: 10000 });
   return page;
 }
@@ -59,11 +51,11 @@ test.describe('Calculator disguise', () => {
 });
 
 test.describe('Two-person chat', () => {
-  test.skip(!hasEnv, 'Requires E2E_A_EMAIL/E2E_A_CODE/E2E_B_EMAIL/E2E_B_CODE/E2E_PASSWORD env vars');
+  test.skip(!hasEnv, 'Requires E2E_A_CODE/E2E_B_CODE env vars');
 
   test('unlock, send, receive, edit, delete, reply, react, typing', async ({ browser }) => {
-    const pageA = await openAsUser(browser, A_EMAIL!, A_CODE!);
-    const pageB = await openAsUser(browser, B_EMAIL!, B_CODE!);
+    const pageA = await openAsUser(browser, A_CODE!);
+    const pageB = await openAsUser(browser, B_CODE!);
 
     // Send + receive.
     const text = `Hello from A ${Date.now()}`;
@@ -104,7 +96,7 @@ test.describe('Two-person chat', () => {
   });
 
   test('offline banner appears and outbox sends on reconnect', async ({ browser }) => {
-    const pageA = await openAsUser(browser, A_EMAIL!, A_CODE!);
+    const pageA = await openAsUser(browser, A_CODE!);
     await pageA.context().setOffline(true);
     await expect(pageA.getByText("You're offline")).toBeVisible({ timeout: 5000 });
 

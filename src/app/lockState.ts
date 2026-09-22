@@ -1,12 +1,16 @@
-export type LockView =
-  | 'calculator'
-  | 'locked-out'
-  | 'sign-in-required'
-  | 'unlocked';
+export type LockView = 'calculator' | 'unlocked';
+
+export interface UnlockSession {
+  accessToken: string;
+  refreshToken: string;
+}
 
 export type UnlockResult =
-  | { status: 'unlocked' }
-  | { status: 'login_required' }
+  // `session` is present when this device had no prior Supabase session for
+  // that user: the code alone re-establishes one, minted server-side via a
+  // one-time magic-link token (never a password — see the `unlock` Edge
+  // Function). The client just calls supabase.auth.setSession(session).
+  | { status: 'unlocked'; session?: UnlockSession }
   | { status: 'no_match' }
   | { status: 'locked'; retryAfter: number };
 
